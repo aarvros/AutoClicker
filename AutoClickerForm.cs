@@ -100,7 +100,6 @@ public class AutoClickerForm : Form {
             int interval = Int32.Parse(macroInterval.Text);
             AutoClicker.AutoClicker.RunMacro(interval);
         }else{
-            MessageBox.Show(mbChoice.Text);
             AutoClicker.AutoClicker.RunHolder(mbChoice.Text);
         }
     }

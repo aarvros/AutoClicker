@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Windows.Documents;
 using System.Reflection;
+using System.Text;
 
 namespace AppForm{
 public class AutoClickerForm : Form {
@@ -22,16 +23,23 @@ public class AutoClickerForm : Form {
     private Label intervalLabelPre;
     private Label intervalLabelPost;
     private ComboBox mbChoice;
+    private Button hotkeyButton;
+    private Label hotkeyLabel;
     private string mode = "macro";
+    private Keys hotkey;
+    private bool hotkeyMode = false;
 
     public AutoClickerForm(){
-        Text = "Auto Clicker v1.0";
-        ClientSize = new Size(320, 100);
+        Text = "Auto Clicker v1.3";
+        ClientSize = new Size(320, 150);
         Stream ico = LoadDLL();
         Icon = new Icon(ico);
 
-        macro = new RadioButton{Name = "macro", Dock = DockStyle.Fill, Text = "Auto Clicker (F8)", Checked=true};
-        holder = new RadioButton{Name = "holder", Dock = DockStyle.Fill, Text = "Mouse Holder (F8)", Checked=false};
+        Label div1 = new Label{Text = "", BorderStyle=BorderStyle.Fixed3D, AutoSize=false, Height=2, Dock = DockStyle.Fill};
+        Label div2 = new Label{Text = "", BorderStyle=BorderStyle.Fixed3D, AutoSize=false, Height=2, Dock = DockStyle.Fill};
+
+        macro = new RadioButton{Name = "macro", Dock = DockStyle.Fill, Text = "Auto Clicker", Checked=true};
+        holder = new RadioButton{Name = "holder", Dock = DockStyle.Fill, Text = "Mouse Holder", Checked=false};
         macro.Click += RadioClick;
         holder.Click += RadioClick;
 
@@ -51,19 +59,34 @@ public class AutoClickerForm : Form {
         intervalLabelPre.TextAlign = ContentAlignment.MiddleRight;
         intervalLabelPost.TextAlign = ContentAlignment.MiddleLeft;
 
-        TableLayoutPanel topLevel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 3,AutoSize = true};
-        TableLayoutPanel autoClickerPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true, BorderStyle=BorderStyle.FixedSingle};
-        TableLayoutPanel intervalPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 3,RowCount = 1,AutoSize = true};
-        TableLayoutPanel holderPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 4,RowCount = 1,AutoSize = true, BorderStyle=BorderStyle.FixedSingle};
+        LoadHotkey();
+        hotkeyButton = new Button{Dock = DockStyle.Fill, Text = "Set Hotkey"};
+        hotkeyButton.Click += HotkeyClick;
+        hotkeyButton.KeyDown += HotkeyDown;
 
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+        hotkeyLabel = new Label{Dock = DockStyle.Fill, Text = $"Hotkey: {hotkey}"};
+        hotkeyLabel.TextAlign = ContentAlignment.MiddleCenter;
+
+        TableLayoutPanel topLevel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 5,AutoSize = true};
+        TableLayoutPanel autoClickerPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
+        TableLayoutPanel intervalPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 3,RowCount = 1,AutoSize = true};
+        TableLayoutPanel holderPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 4,RowCount = 1,AutoSize = true};
+        TableLayoutPanel hotkeyPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
+
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 2));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 2));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
 
         autoClickerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
         autoClickerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
 
         holderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210));
         holderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
         intervalPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
@@ -74,12 +97,44 @@ public class AutoClickerForm : Form {
         intervalPanel.Controls.Add(intervalLabelPost, 2, 0);
         holderPanel.Controls.Add(holder, 0, 0);
         holderPanel.Controls.Add(mbChoice, 1, 0);
+        hotkeyPanel.Controls.Add(hotkeyButton, 0, 0);
+        hotkeyPanel.Controls.Add(hotkeyLabel, 1, 0);
 
         topLevel.Controls.Add(autoClickerPanel, 0, 0);
-        topLevel.Controls.Add(holderPanel, 0, 1);
+        topLevel.Controls.Add(div1, 0, 1);
+        topLevel.Controls.Add(holderPanel, 0, 2);
+        topLevel.Controls.Add(div2, 0, 3);
+        topLevel.Controls.Add(hotkeyPanel, 0, 4);
 
         Controls.Add(topLevel);
-        RegisterHotKey(Handle, HOTKEY_ID, 0, (uint)Keys.F8);
+        RegisterHotKey(Handle, HOTKEY_ID, 0, (uint)hotkey);
+    }
+
+    private void HotkeyClick(object? sender, EventArgs e){
+        hotkeyMode = true;
+        hotkeyButton.Text = $"Press Any Key";
+        hotkeyLabel.Text = $"ESC To Cancel";
+        hotkeyButton.Focus();
+    }
+
+    private void HotkeyDown(object? sender, KeyEventArgs e){
+        if (e.KeyCode != Keys.Escape){
+            hotkey = e.KeyCode;
+            UnregisterHotKey(Handle, HOTKEY_ID);
+            RegisterHotKey(Handle, HOTKEY_ID, 0, (uint)hotkey);
+            string localAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string filepath = localAppDataPath + "\\AutoClicker\\AutoClickerHotkey.cfg";
+            File.WriteAllText(filepath, hotkey.ToString());
+        }
+
+        hotkeyButton.Text = "Set Hotkey";
+        hotkeyLabel.Text = $"Hotkey: {hotkey}";
+        if (mode == "macro"){
+            macro.Focus();
+        }else{
+            holder.Focus();
+        }
+        hotkeyMode = false;
     }
 
     private void RadioClick(object? sender, EventArgs e){
@@ -108,18 +163,39 @@ public class AutoClickerForm : Form {
         if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar)){
             e.Handled = true;
         }
+        if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar)){
+            e.Handled = true;
+        }
     }
 
     private Stream LoadDLL(){
-        string ico_resource = "AutoClicker.resources.spongebob.ico";
+        string ico_resource = "AutoClicker.resources.icon.ico";
         Assembly assembly = Assembly.GetExecutingAssembly();
         return assembly.GetManifestResourceStream(ico_resource)!;
+    }
+
+    private void LoadHotkey(){
+        string localAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string path = localAppDataPath + "\\AutoClicker";
+        if (!Directory.Exists(path)){
+            Directory.CreateDirectory(path);
+        }
+
+        string filepath = path + "\\AutoClickerHotkey.cfg";
+        if (!File.Exists(filepath)){
+            using (FileStream fs = File.Create(filepath)){
+                byte[] info = new UTF8Encoding(true).GetBytes($"{Keys.F8}");
+                fs.Write(info, 0, info.Length);
+            }
+        }
+        string keyString = File.ReadAllText(filepath);
+        hotkey = (Keys)Enum.Parse(typeof(Keys), keyString);
     }
 
     protected override void WndProc(ref Message m)
     {
         const int WM_HOTKEY = 0x0312;
-        if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID)
+        if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID && !hotkeyMode)
         {   
             RunProcess(null, null);
         }

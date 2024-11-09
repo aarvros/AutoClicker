@@ -19,11 +19,9 @@ public class AutoClicker{
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
         await Task.Run(async () => {
-            int i = 0;
-            while (!token.IsCancellationRequested && i < 100){
+            while (!token.IsCancellationRequested){
                 SendClick();
                 await Task.Delay(milliInterval); 
-                i++;
             }
             active = false;
         }, token);

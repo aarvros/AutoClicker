@@ -53,6 +53,7 @@ public class AutoClicker{
 
     public static void cancel(){
         _cancellationTokenSource?.Cancel();
+        active = false;
     }
 
     public static void SendClick(){

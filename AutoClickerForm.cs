@@ -138,6 +138,7 @@ public class AutoClickerForm : Form {
     }
 
     private void RadioClick(object? sender, EventArgs e){
+        AutoClicker.AutoClicker.cancel();
         RadioButton? clickedButton = sender as RadioButton;
         if (clickedButton!.Name == "macro"){
             macro.Checked = true;

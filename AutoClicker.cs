@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -18,10 +19,15 @@ public class AutoClicker{
     public static async Task RunMacroAsync(int milliInterval){
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
+        var stopwatch = new Stopwatch();
         await Task.Run(async () => {
             while (!token.IsCancellationRequested){
-                SendClick();
-                await Task.Delay(milliInterval); 
+                //SendClick();
+                //await Task.Delay(milliInterval);
+                stopwatch.Restart();
+                SendDown(MOUSEEVENTF_LEFTDOWN);
+                while (stopwatch.ElapsedMilliseconds < milliInterval) {await Task.Yield();}
+                SendUp(MOUSEEVENTF_LEFTUP);
             }
             active = false;
         }, token);

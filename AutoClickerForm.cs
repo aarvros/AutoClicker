@@ -21,7 +21,6 @@ public class AutoClickerForm : Form {
     private RadioButton holder;
     private TextBox macroInterval;
     private Label intervalLabelPre;
-    private Label intervalLabelPost;
     private ComboBox mbChoice;
     private Button hotkeyButton;
     private Label hotkeyLabel;
@@ -30,52 +29,54 @@ public class AutoClickerForm : Form {
     private bool hotkeyMode = false;
 
     public AutoClickerForm(){
-        Text = "Auto Clicker v1.3";
-        ClientSize = new Size(320, 150);
+        Text = "Auto Clicker v1.4";
+        ClientSize = new Size(320, 178);
         Stream ico = LoadDLL();
         Icon = new Icon(ico);
 
         Label div1 = new Label{Text = "", BorderStyle=BorderStyle.Fixed3D, AutoSize=false, Height=2, Dock = DockStyle.Fill};
         Label div2 = new Label{Text = "", BorderStyle=BorderStyle.Fixed3D, AutoSize=false, Height=2, Dock = DockStyle.Fill};
 
+        TableLayoutPanel mbChoicePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
+        Label mbLabel = new Label{Dock = DockStyle.Fill, Text = "Mouse Button"};
+        mbChoice = new ComboBox{TabIndex = 0, Text = "Left Click"};
+        string[] buttons = ["Left Click", "Right Click"];
+        mbChoice.Items.AddRange(buttons);
+        mbChoice.Anchor = AnchorStyles.Right;
+        mbLabel.TextAlign = ContentAlignment.MiddleLeft;
+
         macro = new RadioButton{Name = "macro", Dock = DockStyle.Fill, Text = "Auto Clicker", Checked=true};
         holder = new RadioButton{Name = "holder", Dock = DockStyle.Fill, Text = "Mouse Holder", Checked=false};
         macro.Click += RadioClick;
         holder.Click += RadioClick;
 
-        mbChoice = new ComboBox{TabIndex = 0, Text = "Left Click"};
-        string[] buttons = ["Left Click", "Right Click"];
-        mbChoice.Items.AddRange(buttons);
-        mbChoice.Anchor = AnchorStyles.None;
-
-        intervalLabelPre = new Label{Dock = DockStyle.Fill, Text = "Left Click Every"};
-        macroInterval = new TextBox{Dock = DockStyle.Fill, Text = "5", Width=50};
-        intervalLabelPost = new Label{Dock = DockStyle.Fill, Text = "ms"};
-
-        macroInterval.Anchor = AnchorStyles.Right;
+        intervalLabelPre = new Label{Dock = DockStyle.Fill, Text = "Interval (ms):"};
+        macroInterval = new TextBox{Dock = DockStyle.Fill, Text = "20", Width=70};
+        macroInterval.Anchor = AnchorStyles.None;
         macroInterval.KeyPress += new KeyPressEventHandler(IntervalKeyPress);
-
         macroInterval.TextAlign = HorizontalAlignment.Right;
         intervalLabelPre.TextAlign = ContentAlignment.MiddleRight;
-        intervalLabelPost.TextAlign = ContentAlignment.MiddleLeft;
+
+        Button helpButton = new Button{Dock = DockStyle.Fill, Text = "Help"};
+        helpButton.Click += helpButtonClicked;
 
         LoadHotkey();
         hotkeyButton = new Button{Dock = DockStyle.Fill, Text = "Set Hotkey"};
         hotkeyButton.Click += HotkeyClick;
         hotkeyButton.KeyDown += HotkeyDown;
-
         hotkeyLabel = new Label{Dock = DockStyle.Fill, Text = $"Hotkey: {hotkey}"};
         hotkeyLabel.TextAlign = ContentAlignment.MiddleCenter;
 
-        TableLayoutPanel topLevel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 5,AutoSize = true};
+        TableLayoutPanel topLevel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 6,AutoSize = true};
         TableLayoutPanel autoClickerPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
-        TableLayoutPanel intervalPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 3,RowCount = 1,AutoSize = true};
+        TableLayoutPanel intervalPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
         TableLayoutPanel holderPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 4,RowCount = 1,AutoSize = true};
         TableLayoutPanel hotkeyPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
 
         topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 2));
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 2));
         topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
 
@@ -90,23 +91,26 @@ public class AutoClickerForm : Form {
 
         intervalPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
+        mbChoicePanel.Controls.Add(mbLabel, 0, 0);
+        mbChoicePanel.Controls.Add(mbChoice, 1, 0);
         autoClickerPanel.Controls.Add(macro, 0, 0);
         autoClickerPanel.Controls.Add(intervalPanel, 1, 0);
         intervalPanel.Controls.Add(intervalLabelPre, 0, 0);
         intervalPanel.Controls.Add(macroInterval, 1, 0);
-        intervalPanel.Controls.Add(intervalLabelPost, 2, 0);
         holderPanel.Controls.Add(holder, 0, 0);
-        holderPanel.Controls.Add(mbChoice, 1, 0);
+        holderPanel.Controls.Add(helpButton, 1, 0);
         hotkeyPanel.Controls.Add(hotkeyButton, 0, 0);
         hotkeyPanel.Controls.Add(hotkeyLabel, 1, 0);
 
-        topLevel.Controls.Add(autoClickerPanel, 0, 0);
+        topLevel.Controls.Add(mbChoicePanel, 0, 0);
         topLevel.Controls.Add(div1, 0, 1);
-        topLevel.Controls.Add(holderPanel, 0, 2);
-        topLevel.Controls.Add(div2, 0, 3);
-        topLevel.Controls.Add(hotkeyPanel, 0, 4);
+        topLevel.Controls.Add(autoClickerPanel, 0, 2);
+        topLevel.Controls.Add(holderPanel, 0, 3);
+        topLevel.Controls.Add(div2, 0, 4);
+        topLevel.Controls.Add(hotkeyPanel, 0, 5);
 
         Controls.Add(topLevel);
+        ActiveControl = mbLabel;    // remove focus from dropdown on startup
         RegisterHotKey(Handle, HOTKEY_ID, 0, (uint)hotkey);
     }
 
@@ -151,10 +155,15 @@ public class AutoClickerForm : Form {
         }
     }
 
+    private void helpButtonClicked(object? sender, EventArgs e){
+        string msg = "AutoClicker:\nPress hotkey to activate, press again to deactivate.\n\nMouse Holder:\nPress hotkey to activate, press the selected mouse button to deactivate.";
+        MessageBox.Show(msg, "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
     private void RunProcess(object? sender, EventArgs? e){
         if (mode == "macro"){
             int interval = Int32.Parse(macroInterval.Text);
-            AutoClicker.AutoClicker.RunMacro(interval);
+            AutoClicker.AutoClicker.RunMacro(interval, mbChoice.Text);
         }else{
             AutoClicker.AutoClicker.RunHolder(mbChoice.Text);
         }

@@ -39,9 +39,10 @@ public class AutoClickerForm : Form {
 
         TableLayoutPanel mbChoicePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
         Label mbLabel = new Label{Dock = DockStyle.Fill, Text = "Mouse Button"};
-        mbChoice = new ComboBox{TabIndex = 0, Text = "Left Click"};
+        mbChoice = new ComboBox{DropDownStyle = ComboBoxStyle.DropDownList};
         string[] buttons = ["Left Click", "Right Click"];
         mbChoice.Items.AddRange(buttons);
+        mbChoice.SelectedIndex = 0;
         mbChoice.Anchor = AnchorStyles.Right;
         mbLabel.TextAlign = ContentAlignment.MiddleLeft;
 
@@ -156,14 +157,19 @@ public class AutoClickerForm : Form {
     }
 
     private void helpButtonClicked(object? sender, EventArgs e){
-        string msg = "AutoClicker:\nPress hotkey to activate, press again to deactivate.\n\nMouse Holder:\nPress hotkey to activate, press the selected mouse button to deactivate.";
+        string msg = "AutoClicker:\nPress hotkey to activate, press again to deactivate.\nLowest possible interval is 2ms.\n\nMouse Holder:\nPress hotkey to activate, press the selected mouse button to deactivate.";
         MessageBox.Show(msg, "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void RunProcess(object? sender, EventArgs? e){
         if (mode == "macro"){
-            int interval = Int32.Parse(macroInterval.Text);
-            AutoClicker.AutoClicker.RunMacro(interval, mbChoice.Text);
+            try{
+                int interval = Int32.Parse(macroInterval.Text);
+                AutoClicker.AutoClicker.RunMacro(interval, mbChoice.Text);
+            } catch (OverflowException){
+                MessageBox.Show("Interval value too large!", "Interval Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                macroInterval.Text = "20";
+            }
         }else{
             AutoClicker.AutoClicker.RunHolder(mbChoice.Text);
         }

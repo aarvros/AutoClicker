@@ -29,14 +29,15 @@ public class AutoClicker{
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
         var stopwatch = new Stopwatch();
+        int halfInterval = milliInterval >= 2 ? milliInterval / 2 : 1;   // if under 2, set halfinterval to 1
         await Task.Run(async () => {
             while (!token.IsCancellationRequested){
                 stopwatch.Restart();
                 SendDown(down);
-                while (stopwatch.ElapsedMilliseconds < 1) {await Task.Yield();}     // hold down for 1ms
-                SendUp(up);
+                while (stopwatch.ElapsedMilliseconds < halfInterval) {await Task.Yield();}  // hold down for half the interval
                 stopwatch.Restart();
-                while (stopwatch.ElapsedMilliseconds < milliInterval-1) {await Task.Yield();}   // sleep for interval - 1ms
+                SendUp(up);
+                while (stopwatch.ElapsedMilliseconds < halfInterval) {await Task.Yield();}  // sleep for for half the interval
             }
             active = false;
         }, token);

@@ -110,7 +110,6 @@ public AutoClickerForm(){
 
         dutyCyclePlot = new FormsPlot{Dock = DockStyle.Fill};
         chartBox.Controls.Add(dutyCyclePlot);
-        UpdateChart();
 
         TableLayoutPanel typePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
         typePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
@@ -171,27 +170,31 @@ public AutoClickerForm(){
 
     private void UpdateChart(){
         int interval = downInterval + upInterval;
-        int pointsPerCycle = 100;
-        int totalPoints = 303;
         int ratioVal = Int32.Parse(ratioLabel.Text[..2]);
-        double[] ys = new double[totalPoints];
+        int duplicates = 2;
+        int pointsPerCycle = 100;
+        int totalPoints = pointsPerCycle * duplicates;
+        int totalPointsBuffered = totalPoints + 3;
+        int stepSize = pointsPerCycle / interval;
 
-        for (int cycle = 0; cycle < 3; cycle++){
-            for (int t = 0; t < pointsPerCycle; t++){
-                if (t < ratioVal)
-                    ys[cycle * pointsPerCycle + t] = 2; // Mouse is held down
-                else
-                    ys[cycle * pointsPerCycle + t] = 1; // Mouse is up
+        double[] ys = new double[totalPointsBuffered];
+        for(int i = 0; i < totalPointsBuffered; i++){ys[i] = 2;}
+        int normalizedSplitPoint = (int)(downInterval * (pointsPerCycle / (interval + 0.0)));
+
+        for(int c = 0; c < duplicates; c++){
+            for(int i = normalizedSplitPoint + (c*pointsPerCycle); i < pointsPerCycle*(c+1); i++){
+                ys[i] = 1;
             }
         }
-        ys[300] = 1;
-        ys[301] = 0.8;  // used to lock dragging the x axis
-        ys[302] = 2.2;  // by putting data on both upper and lower bounds
+
+        ys[totalPoints] = 1;
+        ys[totalPoints+1] = 0.8;  // used to lock dragging the x axis
+        ys[totalPoints+2] = 2.2;  // by putting data on both upper and lower bounds
         
         ScottPlot.AxisRules.MaximumBoundary axisRule = new(
             xAxis: dutyCyclePlot.Plot.Axes.Bottom,
             yAxis: dutyCyclePlot.Plot.Axes.Left,
-            limits: new AxisLimits(0, 300, 0.8, 2.2)
+            limits: new AxisLimits(0, totalPoints, 0.8, 2.2)
         );
 
         dutyCyclePlot.Plot.Clear();
@@ -199,7 +202,7 @@ public AutoClickerForm(){
         dutyCyclePlot.Plot.HideGrid();
         dutyCyclePlot.Plot.HideLegend();
         dutyCyclePlot.Plot.Axes.Left.SetTicks([1, 2], ["Mouse Up", "Mouse Down"]);
-        dutyCyclePlot.Plot.Axes.Bottom.SetTicks([0, 100, 200, 300], ["0ms", $"{interval}", $"{interval*2}", $"{interval*3}"]);
+        dutyCyclePlot.Plot.Axes.Bottom.SetTicks([0, 100, 200], ["0ms", $"{interval}", $"{interval*2}"]);
 
         dutyCyclePlot.Plot.Axes.Rules.Clear();
         dutyCyclePlot.Plot.Axes.Rules.Add(axisRule);
@@ -270,21 +273,30 @@ public AutoClickerForm(){
     }
 
     private bool recalculateIntervals(){
+        bool success;
+        int value = scrollBar.Value;
+        int interval;
         try {
-            int value = scrollBar.Value;
-            int interval = Int32.Parse(macroInterval.Text);
-            int adjInterval = interval < 2 ? 2 : interval;   // if under 2, set to 2
-            double resultInterval = adjInterval * (value / 100.0);
-            double adjResultInterval = resultInterval < 1 ? 1.0 : resultInterval; // if under 1, set to 1
-            downInterval = (int)adjResultInterval;
-            upInterval = adjInterval - (int)adjResultInterval;
-            UpdateChart();
-            return true;
+            interval = Int32.Parse(macroInterval.Text);
+            success = true;
         } catch (OverflowException){
             MessageBox.Show("Interval value too large!", "Interval Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             macroInterval.Text = "20";
-            return false;
+            interval = Int32.Parse(macroInterval.Text);
+            success = false;
         }
+
+        if(interval < 2){
+            interval = 2;
+            macroInterval.Text = "2";
+        }
+
+        double resultInterval = interval * (value / 100.0);
+        double adjResultInterval = resultInterval < 1 ? 1.0 : resultInterval; // if under 1, set to 1
+        downInterval = (int)adjResultInterval;
+        upInterval = interval - (int)adjResultInterval;
+        UpdateChart();
+        return success;
     }
 
     private void generalHelpButtonClicked(object? sender, EventArgs e){

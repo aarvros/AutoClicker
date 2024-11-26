@@ -18,7 +18,7 @@ public class AutoClicker{
     private static uint up;
     private static uint down;
 
-    public static async Task RunMacroAsync(int milliInterval, string clickType){
+    public static async Task RunMacroAsync(int downInterval, int upInterval, string clickType){
         if (clickType == "Left Click"){
             up = MOUSEEVENTF_LEFTUP;
             down = MOUSEEVENTF_LEFTDOWN;
@@ -29,32 +29,34 @@ public class AutoClicker{
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
         var stopwatch = new Stopwatch();
-        int halfInterval = milliInterval >= 2 ? milliInterval / 2 : 1;   // if under 2, set halfinterval to 1
+        MessageBox.Show($"Down: {downInterval}ms\nUp: {upInterval}ms", "info", MessageBoxButtons.OK);
+        return;
+
         await Task.Run(async () => {
             while (!token.IsCancellationRequested){
                 stopwatch.Restart();
                 SendDown(down);
-                while (stopwatch.ElapsedMilliseconds < halfInterval) {await Task.Yield();}  // hold down for half the interval
+                while (stopwatch.ElapsedMilliseconds < downInterval) {await Task.Yield();}  // hold down for half the interval
                 stopwatch.Restart();
                 SendUp(up);
-                while (stopwatch.ElapsedMilliseconds < halfInterval) {await Task.Yield();}  // sleep for for half the interval
+                while (stopwatch.ElapsedMilliseconds < upInterval) {await Task.Yield();}  // sleep for for half the interval
             }
             active = false;
         }, token);
     }
 
-    public static void RunMacro(int milliInterval, string clickType){
+    public static void RunMacro(int downInterval, int upInterval, string clickType){
         if (active){
             cancel();
             active = false;
         }else{
             active = true;
-            RunMacroAwait(milliInterval, clickType);
+            RunMacroAwait(downInterval, upInterval, clickType);
         }
     }
 
-    private static async void RunMacroAwait(int milliInterval, string clickType){
-        await RunMacroAsync(milliInterval, clickType);
+    private static async void RunMacroAwait(int downInterval, int upInterval, string clickType){
+        await RunMacroAsync(downInterval, upInterval, clickType);
     }
 
     public static void RunHolder(string clickType){

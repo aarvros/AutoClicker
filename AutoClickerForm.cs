@@ -9,6 +9,9 @@ using System.Runtime.InteropServices;
 using System.Windows.Documents;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
+using ScottPlot.WinForms;
+using ScottPlot;
 
 namespace AppForm{
 public class AutoClickerForm : Form {
@@ -16,103 +19,191 @@ public class AutoClickerForm : Form {
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-    private const int HOTKEY_ID = 5;
-    private RadioButton macro;
-    private RadioButton holder;
+    private const int HOTKEY_ID = 5;    // chosen at random
+    private RadioButton macroRadio;
+    private RadioButton holderRadio;
+    private RadioButton leftRadio;
+    private RadioButton rightRadio;
     private TextBox macroInterval;
-    private Label intervalLabelPre;
-    private ComboBox mbChoice;
+    private System.Windows.Forms.Label intervalLabel;
     private Button hotkeyButton;
-    private Label hotkeyLabel;
+    private System.Windows.Forms.Label hotkeyLabel;
+    private System.Windows.Forms.Label ratioLabel;
+    private HScrollBar scrollBar;
     private string mode = "macro";
+    private string click = "Left Click";
     private Keys hotkey;
     private bool hotkeyMode = false;
+    private int downInterval;
+    private int upInterval;
+    private FormsPlot dutyCyclePlot;
 
-    public AutoClickerForm(){
-        Text = "Auto Clicker v1.4";
-        ClientSize = new Size(320, 178);
+public AutoClickerForm(){
+        Text = "Auto Clicker v1.5";
+        ClientSize = new Size(450, 400);
         Stream ico = LoadDLL();
         Icon = new Icon(ico);
 
-        Label div1 = new Label{Text = "", BorderStyle=BorderStyle.Fixed3D, AutoSize=false, Height=2, Dock = DockStyle.Fill};
-        Label div2 = new Label{Text = "", BorderStyle=BorderStyle.Fixed3D, AutoSize=false, Height=2, Dock = DockStyle.Fill};
+        TableLayoutPanel topLevel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 4,AutoSize = true};
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
+        topLevel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-        TableLayoutPanel mbChoicePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
-        Label mbLabel = new Label{Dock = DockStyle.Fill, Text = "Mouse Button"};
-        mbChoice = new ComboBox{DropDownStyle = ComboBoxStyle.DropDownList};
-        string[] buttons = ["Left Click", "Right Click"];
-        mbChoice.Items.AddRange(buttons);
-        mbChoice.SelectedIndex = 0;
-        mbChoice.Anchor = AnchorStyles.Right;
-        mbLabel.TextAlign = ContentAlignment.MiddleLeft;
+        TableLayoutPanel topPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 3,RowCount = 1,AutoSize = true};
+        //topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+        //topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+        //topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+        topLevel.Controls.Add(topPanel, 0, 0);
 
-        macro = new RadioButton{Name = "macro", Dock = DockStyle.Fill, Text = "Auto Clicker", Checked=true};
-        holder = new RadioButton{Name = "holder", Dock = DockStyle.Fill, Text = "Mouse Holder", Checked=false};
-        macro.Click += RadioClick;
-        holder.Click += RadioClick;
+        GroupBox intervalBox = new GroupBox{Dock = DockStyle.Fill, Text = "Interval", AutoSize = true};
+        topPanel.Controls.Add(intervalBox, 0, 0);
 
-        intervalLabelPre = new Label{Dock = DockStyle.Fill, Text = "Interval (ms):"};
-        macroInterval = new TextBox{Dock = DockStyle.Fill, Text = "20", Width=70};
-        macroInterval.Anchor = AnchorStyles.None;
+        TableLayoutPanel intervalTextPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
+        intervalTextPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80f));
+        intervalTextPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+        intervalBox.Controls.Add(intervalTextPanel);
+        
+        macroInterval = new TextBox{Dock = DockStyle.Fill, Text = "20", AutoSize = true};
+        intervalLabel = new System.Windows.Forms.Label{Dock = DockStyle.Fill, Text = "ms", Width = 20};
+        macroInterval.Anchor = AnchorStyles.Left;
         macroInterval.KeyPress += new KeyPressEventHandler(IntervalKeyPress);
-        macroInterval.TextAlign = HorizontalAlignment.Right;
-        intervalLabelPre.TextAlign = ContentAlignment.MiddleRight;
+        macroInterval.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+        intervalLabel.Anchor = AnchorStyles.Left;
+        intervalLabel.TextAlign = ContentAlignment.MiddleLeft;
+        intervalTextPanel.Controls.Add(macroInterval, 0, 0);
+        intervalTextPanel.Controls.Add(intervalLabel, 1, 0);
 
-        Button helpButton = new Button{Dock = DockStyle.Fill, Text = "Help"};
-        helpButton.Click += helpButtonClicked;
+        GroupBox ratioBox = new GroupBox{Dock = DockStyle.Fill, Text = "Duty Cycle Slider", AutoSize = true};
+        topPanel.Controls.Add(ratioBox, 1, 0);
+
+        TableLayoutPanel ratioPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
+        ratioPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80f));
+        ratioPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+        ratioBox.Controls.Add(ratioPanel);
+
+        scrollBar = new HScrollBar{Dock = DockStyle.Fill};
+        scrollBar.Value = 50;
+        scrollBar.Minimum = 1;
+        scrollBar.Maximum = 108;
+        scrollBar.ValueChanged += scrollMoved;
+        ratioLabel = new System.Windows.Forms.Label{Dock = DockStyle.Fill, Text = "50%", AutoSize = true};
+        ratioLabel.Anchor = AnchorStyles.Left;
+        ratioLabel.TextAlign = ContentAlignment.MiddleLeft;
+        ratioPanel.Controls.Add(scrollBar, 0, 0);
+        ratioPanel.Controls.Add(ratioLabel, 1, 0);
+
+        TableLayoutPanel helpPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 2,AutoSize = true};
+        helpPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+        helpPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+        topPanel.Controls.Add(helpPanel, 2, 0);
+
+        Button generalHelpButton = new Button{Dock = DockStyle.Fill, Text = "Help"};
+        Button ratioHelpButton = new Button{Dock = DockStyle.Fill, Text = "Cycle Help"};
+        generalHelpButton.Click += generalHelpButtonClicked;
+        ratioHelpButton.Click += ratioHelpButtonClicked;
+        helpPanel.Controls.Add(generalHelpButton, 0, 0);
+        helpPanel.Controls.Add(ratioHelpButton, 0, 1);
+
+        GroupBox chartBox = new GroupBox{Dock = DockStyle.Fill, Text = "Duty Cycle", AutoSize = true};
+        topLevel.Controls.Add(chartBox, 0, 1);
+
+        dutyCyclePlot = new FormsPlot{Dock = DockStyle.Fill};
+        chartBox.Controls.Add(dutyCyclePlot);
+        UpdateChart();
+
+        TableLayoutPanel typePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
+        typePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        typePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        topLevel.Controls.Add(typePanel, 0, 2);
+
+        GroupBox macroType = new GroupBox{Dock = DockStyle.Fill, Text = "Macro Type", Width = 100};
+        GroupBox clickType = new GroupBox{Dock = DockStyle.Fill, Text = "Click Type", Width = 100};
+        typePanel.Controls.Add(macroType, 0, 0);
+        typePanel.Controls.Add(clickType, 1, 0);
+
+        TableLayoutPanel macroTypePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 2,AutoSize = true};
+        macroTypePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+        macroTypePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+        macroType.Controls.Add(macroTypePanel);
+
+        TableLayoutPanel clickTypePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 2,AutoSize = true};
+        clickTypePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+        clickTypePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+        clickType.Controls.Add(clickTypePanel);
+
+        macroRadio = new RadioButton{Name = "macro", Dock = DockStyle.Fill, Text = "Auto Clicker", Checked=true, AutoSize = true};
+        holderRadio = new RadioButton{Name = "holder", Dock = DockStyle.Fill, Text = "Mouse Holder", Checked=false, AutoSize = true};
+        macroRadio.Click += MacroRadioClick;
+        holderRadio.Click += MacroRadioClick;
+        macroTypePanel.Controls.Add(macroRadio, 0, 0);
+        macroTypePanel.Controls.Add(holderRadio, 0, 1);
+
+        leftRadio = new RadioButton{Name = "left", Dock = DockStyle.Fill, Text = "Left Click", Checked=true, AutoSize = true};
+        rightRadio = new RadioButton{Name = "right", Dock = DockStyle.Fill, Text = "Right Click", Checked=false, AutoSize = true};
+        leftRadio.Click += ClickRadioClick;
+        rightRadio.Click += ClickRadioClick;
+        clickTypePanel.Controls.Add(leftRadio, 0, 0);
+        clickTypePanel.Controls.Add(rightRadio, 0, 1);
+
+        GroupBox hotkeyBox = new GroupBox{Dock = DockStyle.Fill, Text = "Hotkey Settings", AutoSize = true};
+        topLevel.Controls.Add(hotkeyBox, 0, 3);
+
+        TableLayoutPanel hotkeyPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        hotkeyBox.Controls.Add(hotkeyPanel);
 
         LoadHotkey();
         hotkeyButton = new Button{Dock = DockStyle.Fill, Text = "Set Hotkey"};
         hotkeyButton.Click += HotkeyClick;
         hotkeyButton.KeyDown += HotkeyDown;
-        hotkeyLabel = new Label{Dock = DockStyle.Fill, Text = $"Hotkey: {hotkey}"};
+        hotkeyLabel = new System.Windows.Forms.Label{Dock = DockStyle.Fill, Text = $"Hotkey: {hotkey}"};
         hotkeyLabel.TextAlign = ContentAlignment.MiddleCenter;
-
-        TableLayoutPanel topLevel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 6,AutoSize = true};
-        TableLayoutPanel autoClickerPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
-        TableLayoutPanel intervalPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
-        TableLayoutPanel holderPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 4,RowCount = 1,AutoSize = true};
-        TableLayoutPanel hotkeyPanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};
-
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 2));
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 2));
-        topLevel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-
-        autoClickerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-        autoClickerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
-
-        holderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210));
-        holderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-
-        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-
-        intervalPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-        mbChoicePanel.Controls.Add(mbLabel, 0, 0);
-        mbChoicePanel.Controls.Add(mbChoice, 1, 0);
-        autoClickerPanel.Controls.Add(macro, 0, 0);
-        autoClickerPanel.Controls.Add(intervalPanel, 1, 0);
-        intervalPanel.Controls.Add(intervalLabelPre, 0, 0);
-        intervalPanel.Controls.Add(macroInterval, 1, 0);
-        holderPanel.Controls.Add(holder, 0, 0);
-        holderPanel.Controls.Add(helpButton, 1, 0);
         hotkeyPanel.Controls.Add(hotkeyButton, 0, 0);
         hotkeyPanel.Controls.Add(hotkeyLabel, 1, 0);
 
-        topLevel.Controls.Add(mbChoicePanel, 0, 0);
-        topLevel.Controls.Add(div1, 0, 1);
-        topLevel.Controls.Add(autoClickerPanel, 0, 2);
-        topLevel.Controls.Add(holderPanel, 0, 3);
-        topLevel.Controls.Add(div2, 0, 4);
-        topLevel.Controls.Add(hotkeyPanel, 0, 5);
-
         Controls.Add(topLevel);
-        ActiveControl = mbLabel;    // remove focus from dropdown on startup
+        ActiveControl = intervalLabel;    // remove focus from dropdown on startup
+        recalculateIntervals();
         RegisterHotKey(Handle, HOTKEY_ID, 0, (uint)hotkey);
+    }
+
+    private void UpdateChart(){
+        int interval = downInterval + upInterval;
+        int pointsPerCycle = 100;
+        int totalPoints = 303;
+        int ratioVal = Int32.Parse(ratioLabel.Text[..2]);
+        double[] ys = new double[totalPoints];
+
+        for (int cycle = 0; cycle < 3; cycle++){
+            for (int t = 0; t < pointsPerCycle; t++){
+                if (t < ratioVal)
+                    ys[cycle * pointsPerCycle + t] = 2; // Mouse is held down
+                else
+                    ys[cycle * pointsPerCycle + t] = 1; // Mouse is up
+            }
+        }
+        ys[300] = 1;
+        ys[301] = 0.8;  // used to lock dragging the x axis
+        ys[302] = 2.2;  // by putting data on both upper and lower bounds
+        
+        ScottPlot.AxisRules.MaximumBoundary axisRule = new(
+            xAxis: dutyCyclePlot.Plot.Axes.Bottom,
+            yAxis: dutyCyclePlot.Plot.Axes.Left,
+            limits: new AxisLimits(0, 300, 0.8, 2.2)
+        );
+
+        dutyCyclePlot.Plot.Clear();
+        dutyCyclePlot.Plot.Add.Signal(ys);
+        dutyCyclePlot.Plot.HideGrid();
+        dutyCyclePlot.Plot.HideLegend();
+        dutyCyclePlot.Plot.Axes.Left.SetTicks([1, 2], ["Mouse Up", "Mouse Down"]);
+        dutyCyclePlot.Plot.Axes.Bottom.SetTicks([0, 100, 200, 300], ["0ms", $"{interval}", $"{interval*2}", $"{interval*3}"]);
+
+        dutyCyclePlot.Plot.Axes.Rules.Clear();
+        dutyCyclePlot.Plot.Axes.Rules.Add(axisRule);
+        dutyCyclePlot.Refresh();
     }
 
     private void HotkeyClick(object? sender, EventArgs e){
@@ -135,47 +226,105 @@ public class AutoClickerForm : Form {
         hotkeyButton.Text = "Set Hotkey";
         hotkeyLabel.Text = $"Hotkey: {hotkey}";
         if (mode == "macro"){
-            macro.Focus();
+            macroRadio.Focus();
         }else{
-            holder.Focus();
+            holderRadio.Focus();
         }
         hotkeyMode = false;
     }
 
-    private void RadioClick(object? sender, EventArgs e){
+    private void MacroRadioClick(object? sender, EventArgs e){
         AutoClicker.AutoClicker.cancel();
         RadioButton? clickedButton = sender as RadioButton;
         if (clickedButton!.Name == "macro"){
-            macro.Checked = true;
-            holder.Checked = false;
+            macroRadio.Checked = true;
+            holderRadio.Checked = false;
             mode = "macro";
         }else if (clickedButton!.Name == "holder"){
-            macro.Checked = false;
-            holder.Checked = true;
+            macroRadio.Checked = false;
+            holderRadio.Checked = true;
             mode = "holder";
         }
     }
 
-    private void helpButtonClicked(object? sender, EventArgs e){
+    private void ClickRadioClick(object? sender, EventArgs e){
+        AutoClicker.AutoClicker.cancel();
+        RadioButton? clickedButton = sender as RadioButton;
+        if (clickedButton!.Name == "left"){
+            leftRadio.Checked = true;
+            rightRadio.Checked = false;
+            click = "Left Click";
+        }else if (clickedButton!.Name == "right"){
+            leftRadio.Checked = false;
+            rightRadio.Checked = true;
+            click = "Right Click";
+        }
+    }
+
+    private void scrollMoved(object? sender, EventArgs e){
+        HScrollBar scroll = (sender as HScrollBar)!;
+        int value = scroll.Value;
+        string prefill = value < 10 ? "0" : "";     // adds a leading 0 to stop autosize
+        ratioLabel.Text = prefill + scroll.Value.ToString() + "%";
+        recalculateIntervals();
+    }
+
+    private bool recalculateIntervals(){
+        try {
+            int value = scrollBar.Value;
+            int interval = Int32.Parse(macroInterval.Text);
+            int adjInterval = interval < 2 ? 2 : interval;   // if under 2, set to 2
+            double resultInterval = adjInterval * (value / 100.0);
+            double adjResultInterval = resultInterval < 1 ? 1.0 : resultInterval; // if under 1, set to 1
+            downInterval = (int)adjResultInterval;
+            upInterval = adjInterval - (int)adjResultInterval;
+            UpdateChart();
+            return true;
+        } catch (OverflowException){
+            MessageBox.Show("Interval value too large!", "Interval Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            macroInterval.Text = "20";
+            return false;
+        }
+    }
+
+    private void generalHelpButtonClicked(object? sender, EventArgs e){
         string msg = "AutoClicker:\nPress hotkey to activate, press again to deactivate.\nLowest possible interval is 2ms.\n\nMouse Holder:\nPress hotkey to activate, press the selected mouse button to deactivate.";
         MessageBox.Show(msg, "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
+    private void ratioHelpButtonClicked(object? sender, EventArgs e){
+        string msg = """
+        The Duty Cycle is the percent of the total interval spent holding down the mouse button.
+        The down and up intervals will have a value of at least 1ms.
+        
+        Examples:
+        1000ms at 50% --> Down | wait 500ms --> Up | wait 500ms
+        1000ms at 5% -->   Down | wait 50ms   --> Up | wait 950ms
+        10ms at 99% -->     Down | wait 9ms     --> Up | wait 1ms
+        1ms at 50% -->       Down | wait 1ms     --> Up | wait 1ms
+
+        Low %s are recommended for larger intervals over 500ms.
+        50% is recommended for small intervals under 100ms.
+        """;
+        MessageBox.Show(msg, "Duty Cycle Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
     private void RunProcess(object? sender, EventArgs? e){
         if (mode == "macro"){
-            try{
-                int interval = Int32.Parse(macroInterval.Text);
-                AutoClicker.AutoClicker.RunMacro(interval, mbChoice.Text);
-            } catch (OverflowException){
-                MessageBox.Show("Interval value too large!", "Interval Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                macroInterval.Text = "20";
+            if (recalculateIntervals()){
+                AutoClicker.AutoClicker.RunMacro(downInterval, upInterval, click);
             }
         }else{
-            AutoClicker.AutoClicker.RunHolder(mbChoice.Text);
+            AutoClicker.AutoClicker.RunHolder(click);
         }
     }
 
     private void IntervalKeyPress(object? sender, KeyPressEventArgs e){
+        if (e.KeyChar == (char)Keys.Enter){
+            recalculateIntervals();
+            ActiveControl = intervalLabel;      // remove focus upon pressing enter
+            e.Handled = true;
+        }
         if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar)){
             e.Handled = true;
         }
@@ -229,8 +378,8 @@ public class AutoClickerForm : Form {
     public static void Main(string[] args){
         try{
             AutoClickerForm form = new AutoClickerForm();
-            form.FormBorderStyle = FormBorderStyle.FixedSingle;
-            form.MaximizeBox = false;
+            //form.FormBorderStyle = FormBorderStyle.FixedSingle;
+            //form.MaximizeBox = false;
             Application.EnableVisualStyles();
             Application.Run(form);
         } catch (Exception e){

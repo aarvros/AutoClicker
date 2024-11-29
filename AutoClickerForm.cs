@@ -98,8 +98,8 @@ public AutoClickerForm(){
 
         GroupBox chartBox = new GroupBox{Dock = DockStyle.Fill, Text = "Duty Cycle", AutoSize = true};
         topLevel.Controls.Add(chartBox, 0, 1);
-
-        dutyCyclePlot = new FormsPlot{Dock = DockStyle.Fill};
+        
+        dutyCyclePlot = new FormsPlot{Dock = DockStyle.Fill, Font = new Font("Arial", 12)};
         chartBox.Controls.Add(dutyCyclePlot);
 
         TableLayoutPanel typePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 1,AutoSize = true};

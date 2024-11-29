@@ -8,6 +8,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract> <!-- slam literally every file into the exe -->
     <ApplicationIcon>resources\icon.ico</ApplicationIcon>
     <NoWarn>NU1701</NoWarn>
   </PropertyGroup>
@@ -17,6 +18,7 @@
     <PackageReference Include="ScottPlot.WinForms" Version="5.0.47" />
     <PackageReference Include="WindowsInput" Version="6.4.1" />
     <EmbeddedResource Include="resources\icon.ico" />
+    <EmbeddedResource Include="resources\libSkiaSharp.dll" />
+    <EmbeddedResource Include="resources\libHarfBuzzSharp.dll" />
   </ItemGroup>
-
 </Project>

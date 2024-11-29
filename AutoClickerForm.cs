@@ -1,15 +1,6 @@
-﻿using System;
-using System.IO;
-using System.Diagnostics;
-using AutoClicker;
-using WindowsInput;
-using WindowsInput.Native;
-using System.Windows.Forms;
-using System.Runtime.InteropServices;
-using System.Windows.Documents;
+﻿using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Text;
-using System.Text.RegularExpressions;
 using ScottPlot.WinForms;
 using ScottPlot;
 
@@ -390,8 +381,8 @@ public AutoClickerForm(){
     public static void Main(string[] args){
         try{
             AutoClickerForm form = new AutoClickerForm();
-            //form.FormBorderStyle = FormBorderStyle.FixedSingle;
-            //form.MaximizeBox = false;
+            form.FormBorderStyle = FormBorderStyle.FixedSingle;
+            form.MaximizeBox = false;
             Application.EnableVisualStyles();
             Application.Run(form);
         } catch (Exception e){

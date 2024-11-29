@@ -1,9 +1,5 @@
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace AutoClicker{
 public class AutoClicker{
@@ -29,17 +25,15 @@ public class AutoClicker{
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
         var stopwatch = new Stopwatch();
-        MessageBox.Show($"Down: {downInterval}ms\nUp: {upInterval}ms", "info", MessageBoxButtons.OK);
-        return;
 
         await Task.Run(async () => {
             while (!token.IsCancellationRequested){
                 stopwatch.Restart();
                 SendDown(down);
-                while (stopwatch.ElapsedMilliseconds < downInterval) {await Task.Yield();}  // hold down for half the interval
+                while (stopwatch.ElapsedMilliseconds < downInterval) {await Task.Yield();}
                 stopwatch.Restart();
                 SendUp(up);
-                while (stopwatch.ElapsedMilliseconds < upInterval) {await Task.Yield();}  // sleep for for half the interval
+                while (stopwatch.ElapsedMilliseconds < upInterval) {await Task.Yield();}
             }
             active = false;
         }, token);

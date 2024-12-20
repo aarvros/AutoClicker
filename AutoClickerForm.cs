@@ -13,6 +13,8 @@ public class AutoClickerForm : Form {
     private const int HOTKEY_ID = 5;    // chosen at random
     private RadioButton macroRadio;
     private RadioButton holderRadio;
+    private RadioButton keyboardRadio;
+    private TextBox keyboardKeyBox;
     private RadioButton leftRadio;
     private RadioButton rightRadio;
     private TextBox macroInterval;
@@ -30,7 +32,7 @@ public class AutoClickerForm : Form {
     private FormsPlot dutyCyclePlot;
 
 public AutoClickerForm(){
-        Text = "Auto Clicker v1.5";
+        Text = "Auto Clicker v1.6";
         ClientSize = new Size(450, 400);
         Stream ico = LoadDLL();
         Icon = new Icon(ico);
@@ -112,7 +114,7 @@ public AutoClickerForm(){
         typePanel.Controls.Add(macroType, 0, 0);
         typePanel.Controls.Add(clickType, 1, 0);
 
-        TableLayoutPanel macroTypePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 1,RowCount = 2,AutoSize = true};
+        TableLayoutPanel macroTypePanel = new TableLayoutPanel{Dock = DockStyle.Fill,ColumnCount = 2,RowCount = 2,AutoSize = true};
         macroTypePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
         macroTypePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
         macroType.Controls.Add(macroTypePanel);
@@ -123,11 +125,18 @@ public AutoClickerForm(){
         clickType.Controls.Add(clickTypePanel);
 
         macroRadio = new RadioButton{Name = "macro", Dock = DockStyle.Fill, Text = "Auto Clicker", Checked=true, AutoSize = true};
+        keyboardRadio = new RadioButton{Name = "keyboard", Dock = DockStyle.Fill, Text = "Key Press", Checked=false, AutoSize = true};
         holderRadio = new RadioButton{Name = "holder", Dock = DockStyle.Fill, Text = "Mouse Holder", Checked=false, AutoSize = true};
         macroRadio.Click += MacroRadioClick;
+        keyboardRadio.Click += MacroRadioClick;
         holderRadio.Click += MacroRadioClick;
         macroTypePanel.Controls.Add(macroRadio, 0, 0);
-        macroTypePanel.Controls.Add(holderRadio, 0, 1);
+        macroTypePanel.Controls.Add(keyboardRadio, 0, 1);
+        macroTypePanel.Controls.Add(holderRadio, 0, 2);
+
+        keyboardKeyBox = new TextBox{Dock = DockStyle.Fill, Text = "t", AutoSize = true, Enabled = false};
+        keyboardKeyBox.KeyPress += new KeyPressEventHandler(KeyboardKeyPress);
+        macroTypePanel.Controls.Add(keyboardKeyBox, 1, 1);
 
         leftRadio = new RadioButton{Name = "left", Dock = DockStyle.Fill, Text = "Left Click", Checked=true, AutoSize = true};
         rightRadio = new RadioButton{Name = "right", Dock = DockStyle.Fill, Text = "Right Click", Checked=false, AutoSize = true};
@@ -227,18 +236,28 @@ public AutoClickerForm(){
         hotkeyMode = false;
     }
 
+    private void UncheckAll(){
+        macroRadio.Checked = false;
+        keyboardRadio.Checked = false;
+        holderRadio.Checked = false;
+        keyboardKeyBox.Enabled = false;
+    }
+
     private void MacroRadioClick(object? sender, EventArgs e){
         AutoClicker.AutoClicker.cancel();
         RadioButton? clickedButton = sender as RadioButton;
+        UncheckAll();
         if (clickedButton!.Name == "macro"){
             macroRadio.Checked = true;
-            holderRadio.Checked = false;
-            mode = "macro";
         }else if (clickedButton!.Name == "holder"){
-            macroRadio.Checked = false;
             holderRadio.Checked = true;
-            mode = "holder";
+        }else if (clickedButton!.Name == "keyboard"){
+            keyboardRadio.Checked = true;
+            keyboardKeyBox.Enabled = true;
+        }else{
+            MessageBox.Show("How did you manage to do this???");
         }
+        mode = clickedButton.Name;
     }
 
     private void ClickRadioClick(object? sender, EventArgs e){
@@ -313,11 +332,21 @@ public AutoClickerForm(){
     }
 
     private void RunProcess(object? sender, EventArgs? e){
-        if (mode == "macro"){
-            if (recalculateIntervals()){
+        if(recalculateIntervals()){
+            if(mode == "macro"){
                 AutoClicker.AutoClicker.RunMacro(downInterval, upInterval, click);
+            }else if(mode == "keyboard"){
+                if(keyboardKeyBox.Text != ""){
+                    char key = keyboardKeyBox.Text.ToUpper().First();
+                    if(char.IsLetter(key)){
+                        AutoClicker.AutoClicker.RunKeyPress(downInterval, upInterval, key);
+                    }else{
+                        MessageBox.Show("Key must be a letter", "Invalid Key", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        keyboardKeyBox.Text = "t";
+                    }
+                }
             }
-        }else{
+        }else if(mode == "holder"){
             AutoClicker.AutoClicker.RunHolder(click);
         }
     }
@@ -333,6 +362,17 @@ public AutoClickerForm(){
         }
         if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar)){
             e.Handled = true;
+        }
+    }
+
+    private void KeyboardKeyPress(object? sender, KeyPressEventArgs e){
+        if (e.KeyChar == (char)Keys.Enter){
+            ActiveControl = intervalLabel;      // remove focus upon pressing enter
+            e.Handled = true;
+        }else if(keyboardKeyBox.Text.Length == 1 && e.KeyChar != (char)Keys.Back){
+            e.Handled = true;
+        }else{
+            e.Handled = !(char.IsLetter(e.KeyChar) || e.KeyChar == (char)Keys.Back);
         }
     }
 

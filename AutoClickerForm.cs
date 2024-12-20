@@ -170,12 +170,10 @@ public AutoClickerForm(){
 
     private void UpdateChart(){
         int interval = downInterval + upInterval;
-        int ratioVal = Int32.Parse(ratioLabel.Text[..2]);
         int duplicates = 2;
         int pointsPerCycle = 100;
         int totalPoints = pointsPerCycle * duplicates;
         int totalPointsBuffered = totalPoints + 3;
-        int stepSize = pointsPerCycle / interval;
 
         double[] ys = new double[totalPointsBuffered];
         for(int i = 0; i < totalPointsBuffered; i++){ys[i] = 2;}

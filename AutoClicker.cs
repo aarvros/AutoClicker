@@ -6,10 +6,8 @@ public class AutoClicker{
     [DllImport("user32.dll")]
     private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
     [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
-    public static extern void keybd_event(uint bVk, uint bScan, uint dwFlags, uint dwExtraInfo);
-
+    private static extern void keybd_event(uint bVk, uint bScan, uint dwFlags, uint dwExtraInfo);
     public static bool active = false;
-    public static bool active2 = false;
     private static CancellationTokenSource? _cancellationTokenSource;
     private static CancellationTokenSource? _cancellationTokenSource2;
     private static Dictionary<string, List<uint>> clickCodeDict = new Dictionary<string, List<uint>>{
@@ -48,7 +46,7 @@ public class AutoClicker{
                 keybd_event(key, 0, 2, 0);
                 while (stopwatch.ElapsedMilliseconds < upInterval) {await Task.Yield();}
             }
-            active2 = false;
+            active = false;
         }, token);
     }
 
@@ -76,11 +74,11 @@ public class AutoClicker{
     }
 
     public static void RunKeyPress(int downInterval, int upInterval, char key){
-        if (active2){
+        if (active){
             cancel();
-            active2 = false;
+            active = false;
         }else{
-            active2 = true;
+            active = true;
             RunKeyPressAwait(downInterval, upInterval, key);
         }
     }
@@ -93,7 +91,6 @@ public class AutoClicker{
         _cancellationTokenSource?.Cancel();
         _cancellationTokenSource2?.Cancel();
         active = false;
-        active2 = false;
     }
 
     public static void SendDown(uint mb){

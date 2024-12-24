@@ -343,9 +343,9 @@ public AutoClickerForm(){
                         keyboardKeyBox.Text = "t";
                     }
                 }
+            }else if(mode == "holder"){
+                AutoClicker.AutoClicker.RunHolder(click);
             }
-        }else if(mode == "holder"){
-            AutoClicker.AutoClicker.RunHolder(click);
         }
     }
 

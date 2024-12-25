@@ -335,8 +335,7 @@ public AutoClickerForm(){
     }
 
     private void RunProcess(object? sender, EventArgs? e){
-        if(keyboardKeyBox.Text == ""){return;}
-        char key = keyboardKeyBox.Text.ToUpper().First();
+        char key = keyboardKeyBox.Text != "" ? keyboardKeyBox.Text.ToUpper().First() : '?';
         if(mode == "macro" && recalculateIntervals()){
             if(click == "Key" && char.IsLetter(key)){
                 AutoClicker.AutoClicker.RunMacro(downInterval, upInterval, click, key);

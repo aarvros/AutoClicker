@@ -21,7 +21,34 @@ public class AutoClicker{
         {"Right Click", new List<uint>{0x0008, 0x0010}},
     };
 
-    public static async Task RunMacroAsync(uint down, uint up, int downInterval, int upInterval){
+    public static void RunMacro(int downInterval, int upInterval, string clickType, char key){
+        if (active){
+            cancel();
+            active = false;
+        }else{
+            active = true;
+            if(key == '?'){
+                RunClickAwait(downInterval, upInterval, clickType);
+            }else{
+                RunKeyPressAwait(downInterval, upInterval, key);
+            }
+        }
+    }
+
+    private static async void RunClickAwait(int downInterval, int upInterval, string clickType){
+        uint down = clickCodeDict[clickType][0];
+        uint up = clickCodeDict[clickType][1];
+        await RunClickMacroAsync(down, up, downInterval, upInterval);
+    }
+
+    private static async void RunKeyPressAwait(int downInterval, int upInterval, char key){
+        INPUT inputDown = GetInput(key, "down");
+        INPUT inputUp = GetInput(key, "up");
+        await RunKeyMacroAsync(downInterval, upInterval, inputDown, inputUp);
+    }
+
+
+    public static async Task RunClickMacroAsync(uint down, uint up, int downInterval, int upInterval){
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
         var stopwatch = new Stopwatch();
@@ -58,56 +85,19 @@ public class AutoClicker{
         }, token);
     }
 
-    public static void RunMacro(int downInterval, int upInterval, string clickType){
-        if (active){
-            cancel();
-            active = false;
+    public static void RunHolder(string clickType, char key){
+        if(key == '?'){
+            uint down = clickCodeDict[clickType][0];
+            uint up = clickCodeDict[clickType][1];
+            SendUp(up);
+            SendDown(down);
         }else{
-            active = true;
-            RunMacroAwait(downInterval, upInterval, clickType);
+            INPUT inputDown = GetInput(key, "down");
+            INPUT inputUp = GetInput(key, "up");
+            int size = Marshal.SizeOf(typeof(INPUT));
+            _ = SendInput(1, [inputUp], size);
+            _ = SendInput(1, [inputDown], size);
         }
-    }
-
-    private static async void RunMacroAwait(int downInterval, int upInterval, string clickType){
-        uint down = clickCodeDict[clickType][0];
-        uint up = clickCodeDict[clickType][1];
-        await RunMacroAsync(down, up, downInterval, upInterval);
-    }
-
-    public static void RunHolder(string clickType){
-        uint down = clickCodeDict[clickType][0];
-        uint up = clickCodeDict[clickType][1];
-        SendUp(up);
-        SendDown(down);
-    }
-
-    public static void RunKeyPress(int downInterval, int upInterval, char key){
-        if (active){
-            cancel();
-            active = false;
-        }else{
-            active = true;
-            RunKeyPressAwait(downInterval, upInterval, key);
-        }
-    }
-
-    private static async void RunKeyPressAwait(int downInterval, int upInterval, char key){
-        uint scanCode = MapVirtualKey(key, 0x00);
-        INPUT inputDown = new INPUT();
-        inputDown.type = (int)InputType.Keyboard;       // incredibly important do not leave out
-        inputDown.u.ki.wVk = 0;
-        inputDown.u.ki.wScan = (ushort)scanCode;
-        inputDown.u.ki.time = 0;
-        inputDown.u.ki.dwFlags = (uint)(KeyEventF.KeyDown | KeyEventF.Scancode);
-        inputDown.u.ki.dwExtraInfo = GetMessageExtraInfo();
-        INPUT inputUp = new INPUT();
-        inputUp.type = (int)InputType.Keyboard;         // incredibly important do not leave out
-        inputUp.u.ki.wVk = 0;
-        inputUp.u.ki.wScan = (ushort)scanCode;
-        inputUp.u.ki.time = 0;
-        inputUp.u.ki.dwFlags = (uint)(KeyEventF.KeyUp | KeyEventF.Scancode);
-        inputUp.u.ki.dwExtraInfo = GetMessageExtraInfo();
-        await RunKeyMacroAsync(downInterval, upInterval, inputDown, inputUp);
     }
 
     public static void cancel(){
@@ -126,6 +116,19 @@ public class AutoClicker{
         uint x = (uint)Cursor.Position.X;
         uint y = (uint)Cursor.Position.Y;
         mouse_event(mb, x, y, 0, 0);
+    }
+
+    public static INPUT GetInput(char key, string type){
+        uint scanCode = MapVirtualKey(key, 0x00);
+        KeyEventF keyType = type == "down" ? KeyEventF.KeyDown : KeyEventF.KeyUp;
+        INPUT input = new INPUT();
+        input.type = (int)InputType.Keyboard;       // incredibly important do not leave out
+        input.u.ki.wVk = 0;
+        input.u.ki.wScan = (ushort)scanCode;
+        input.u.ki.time = 0;
+        input.u.ki.dwFlags = (uint)(keyType | KeyEventF.Scancode);
+        input.u.ki.dwExtraInfo = GetMessageExtraInfo();
+        return input;
     }
 
     [StructLayout(LayoutKind.Sequential)]

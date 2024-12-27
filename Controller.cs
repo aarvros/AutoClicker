@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using System.Reflection;
 using AutoClickerForm;
 using AutoClickerModel;
 

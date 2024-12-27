@@ -1,9 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Text;
-using AutoClickerModel;
 using AutoClickerController;
-using ScottPlot.Plottables;
 
 namespace AutoClickerForm{
 public class AutoClickerView : Form {
@@ -147,7 +145,7 @@ public AutoClickerView(Controller controller){
         Control hotkeyLabel = Controls.Find("HotkeyLabel", true)[0];
         hotkeyButton.Text = $"Press Any Key";
         hotkeyLabel.Text = $"ESC To Cancel";
-        hotkeyButton.Focus();
+        hotkeyButton.Focus();                   // the button needs to be focused to accept a hotkey, maybe find a way to force focus and dont let user click other radio buttons
     }
 
     private void HotkeyDown(object? sender, KeyEventArgs e){

@@ -14,11 +14,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ScottPlot" Version="5.0.47" />
-    <PackageReference Include="ScottPlot.WinForms" Version="5.0.47" />
-    <PackageReference Include="WindowsInput" Version="6.4.1" />
     <EmbeddedResource Include="resources\icon.ico" />
-    <EmbeddedResource Include="resources\libSkiaSharp.dll" />
-    <EmbeddedResource Include="resources\libHarfBuzzSharp.dll" />
   </ItemGroup>
 </Project>

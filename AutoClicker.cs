@@ -4,10 +4,6 @@ using AutoClickerController;
 
 namespace AutoClickerModel{
 public class AutoClicker{
-    [DllImport("user32.dll")]
-    private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
-    [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
-    private static extern void keybd_event(uint bVk, uint bScan, uint dwFlags, uint dwExtraInfo);
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
     [DllImport("user32.dll")]
@@ -15,17 +11,21 @@ public class AutoClicker{
     [DllImport("user32.dll")]
     private static extern uint MapVirtualKey(uint uCode, uint uMapType);
     private CancellationTokenSource? _cancellationTokenSource;
-    private CancellationTokenSource? _cancellationTokenSource2;
     private Dictionary<Controller.InputType, List<uint>> clickCodeDict = new Dictionary<Controller.InputType, List<uint>>{
         {Controller.InputType.LEFTLCLICK, new List<uint>{0x0002, 0x0004}},     // left down, left up
         {Controller.InputType.RIGHTCLICK, new List<uint>{0x0008, 0x0010}},
     };
-
+    private readonly long ticksPerMs = Stopwatch.Frequency / 1000;
     private readonly Controller controller;
     public bool active = false;
 
     public AutoClicker(Controller controller){
         this.controller = controller;
+    }
+
+    public void Cancel(){
+        _cancellationTokenSource?.Cancel();
+        active = false;
     }
 
     public void RunMacro(int interval, Controller.InputType clickType, char key){
@@ -34,100 +34,70 @@ public class AutoClicker{
             active = false;
         }else{
             active = true;
-            if(key == '?'){
-                RunClickAwait(interval, clickType);
-            }else{
-                RunKeyPressAwait(interval, key);
-            }
+            RunMacroAwait(interval, clickType, key);
         }
     }
 
      public void RunHolder(Controller.InputType clickType, char key){
+        INPUT inputDown;
+        INPUT inputUp;
         if(key == '?'){
-            uint down = clickCodeDict[clickType][0];
-            uint up = clickCodeDict[clickType][1];
-            SendUp(up);
-            SendDown(down);
+            inputDown = GetMouseInput(clickCodeDict[clickType][0]);
+            inputUp = GetMouseInput(clickCodeDict[clickType][1]);
         }else{
-            INPUT inputDown = GetInput(key, "down");
-            INPUT inputUp = GetInput(key, "up");
-            int size = Marshal.SizeOf(typeof(INPUT));
-            _ = SendInput(1, [inputUp], size);
-            _ = SendInput(1, [inputDown], size);
+            inputDown = GetKeyInput(key, "down");
+            inputUp = GetKeyInput(key, "up");
         }
+        _ = SendInput(2, [inputUp, inputDown], Marshal.SizeOf(typeof(INPUT)));
     }
 
-    public void Cancel(){
-        _cancellationTokenSource?.Cancel();
-        _cancellationTokenSource2?.Cancel();
-        active = false;
+    private async void RunMacroAwait(int interval, Controller.InputType clickType, char key){
+        INPUT inputDown;
+        INPUT inputUp;
+        if(key == '?'){
+            inputDown = GetMouseInput(clickCodeDict[clickType][0]);
+            inputUp = GetMouseInput(clickCodeDict[clickType][1]);
+        }else{
+            inputDown = GetKeyInput(key, "down");
+            inputUp = GetKeyInput(key, "up");
+        }
+        await RunMacroAsync(interval, inputDown, inputUp);
     }
 
-    private async void RunClickAwait(int interval, Controller.InputType clickType){
-        uint down = clickCodeDict[clickType][0];
-        uint up = clickCodeDict[clickType][1];
-        await RunClickMacroAsync(interval, down, up);
-    }
-
-    private async void RunKeyPressAwait(int interval, char key){
-        INPUT inputDown = GetInput(key, "down");
-        INPUT inputUp = GetInput(key, "up");
-        await RunKeyMacroAsync(interval, inputDown, inputUp);
-    }
-
-
-    private async Task RunClickMacroAsync(int interval, uint down, uint up){
+    private async Task RunMacroAsync(int interval, INPUT inputDown, INPUT inputUp){
+        int size = Marshal.SizeOf(typeof(INPUT));
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
         var stopwatch = new Stopwatch();
+        long intervalTicks = ticksPerMs * interval;  // interval in ticks
         await Task.Run(async () => {
             while (!token.IsCancellationRequested){
                 stopwatch.Restart();
-                SendDown(down);
-                while (stopwatch.ElapsedMilliseconds < 1) {await Task.Yield();}
-                SendUp(up);
-                while (stopwatch.ElapsedMilliseconds < interval) {await Task.Yield();}
+                _ = SendInput(2, [inputDown, inputUp], size);
+                while (stopwatch.ElapsedTicks < intervalTicks) {await Task.Yield();}
             }
+            stopwatch.Stop();
             active = false;
         }, token);
     }
 
-    private async Task RunKeyMacroAsync(int interval, INPUT inputDown, INPUT inputUp){
-        int size = Marshal.SizeOf(typeof(INPUT));
-        _cancellationTokenSource2 = new CancellationTokenSource();
-        var token = _cancellationTokenSource2.Token;
-        var stopwatch = new Stopwatch();
-        await Task.Run(async () => {
-            while (!token.IsCancellationRequested){
-                stopwatch.Restart();
-                //keybd_event(key, 0, 0, 0);        // Fallback, works in most cases but not in certain games, key is just char key in args
-                _ = SendInput(1, [inputDown], size);
-                while (stopwatch.ElapsedMilliseconds < 1) {await Task.Yield();}
-                //keybd_event(key, 0, 2, 0);
-                _ = SendInput(1, [inputUp], size);
-                while (stopwatch.ElapsedMilliseconds < interval) {await Task.Yield();}
-            }
-            active = false;
-        }, token);
+    private INPUT GetMouseInput(uint type){
+        INPUT input = new INPUT();
+        input.type = (int)InputType.Mouse;
+        input.u.mi.dx = 0;
+        input.u.mi.dy = 0;
+        input.u.mi.dwFlags = type;
+        input.u.mi.mouseData = 0;
+        input.u.mi.time = 0;
+        input.u.mi.dwExtraInfo = GetMessageExtraInfo();
+        return input;
     }
 
-    private void SendDown(uint mb){
-        uint x = (uint)Cursor.Position.X;
-        uint y = (uint)Cursor.Position.Y;
-        mouse_event(mb, x, y, 0, 0);
-    }
-
-    private void SendUp(uint mb){
-        uint x = (uint)Cursor.Position.X;
-        uint y = (uint)Cursor.Position.Y;
-        mouse_event(mb, x, y, 0, 0);
-    }
-
-    private INPUT GetInput(char key, string type){
+    private INPUT GetKeyInput(char key, string type){
         uint scanCode = MapVirtualKey(key, 0x00);
         KeyEventF keyType = type == "down" ? KeyEventF.KeyDown : KeyEventF.KeyUp;
         INPUT input = new INPUT();
-        input.type = (int)InputType.Keyboard;       // incredibly important do not leave out
+        input.type = (int)InputType.Keyboard;
         input.u.ki.wVk = 0;
         input.u.ki.wScan = (ushort)scanCode;
         input.u.ki.time = 0;

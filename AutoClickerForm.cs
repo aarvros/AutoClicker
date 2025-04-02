@@ -17,7 +17,7 @@ public class AutoClickerView : Form {
 public AutoClickerView(Controller controller){
         this.controller = controller;
 
-        Text = "Auto Clicker v1.7";
+        Text = "Auto Clicker v1.8";
         ClientSize = new Size(400, 250);
         Stream ico = LoadDLL();
         Icon = new Icon(ico);
@@ -214,7 +214,6 @@ public AutoClickerView(Controller controller){
     }
 
     private void RunProcess(){
-        controller.CheckAndSetInterval();
         controller.HotkeyPressed();
     }
 
@@ -222,7 +221,7 @@ public AutoClickerView(Controller controller){
         TextBox? textBox = sender as TextBox;
         if (e.KeyChar == (char)Keys.Enter){
             if(textBox!.Text == ""){textBox.Text = "0";}
-            controller.CheckAndSetInterval();
+            controller.CheckAndSetInterval(true);   // do not toggle showWarning
             FocusLabel();
             e.Handled = true;
         }
